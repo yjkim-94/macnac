@@ -46,9 +46,9 @@ flutter:
     - assets/images/
     - assets/icons/
 
-  fonts:
-    - family: Pretendard
-      fonts:
-        - asset: assets/fonts/Pretendard-Regular.ttf
-        - asset: assets/fonts/Pretendard-Bold.ttf
-          weight: 700
+  # fonts:
+  #   - family: Pretendard
+  #     fonts:
+  #       - asset: assets/fonts/Pretendard-Regular.ttf
+  #       - asset: assets/fonts/Pretendard-Bold.ttf
+  #         weight: 700
