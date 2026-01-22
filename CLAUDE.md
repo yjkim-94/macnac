@@ -2,6 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 답변 규칙
+- 질문에는 핵심만 짧고 간결하게 답변할 것
+- 한국어로 답변할 것
+- 듣는 사람이 비전공자라는 가정 하에 이해하기 쉽게 설명할 것
+
 ## 프로젝트 개요
 
 **MACNAC: 뉴스 인과관계 분석 및 투자 인사이트 서비스**
