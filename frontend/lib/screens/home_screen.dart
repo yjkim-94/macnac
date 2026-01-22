@@ -87,28 +87,18 @@ class _HomeScreenState extends State<HomeScreen> {
   ];
 
   void _onArticleTap(NewsArticleModel article) {
-    // TODO: 상세 화면으로 이동 (3단계에서 구현)
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${article.title} 클릭됨')),
-    );
+    Navigator.of(context).pushNamed('/detail', arguments: article);
   }
 
   void _onBottomNavTap(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-
-    // TODO: 각 탭별 화면 구현
     if (index == 1) {
-      // 구독 화면
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('구독 화면 (3단계 구현 예정)')),
-      );
+      Navigator.of(context).pushNamed('/subscription');
     } else if (index == 2) {
-      // 프로필 화면
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('프로필 화면 (3단계 구현 예정)')),
-      );
+      Navigator.of(context).pushNamed('/profile');
+    } else {
+      setState(() {
+        _selectedIndex = index;
+      });
     }
   }
 
