@@ -14,8 +14,8 @@ class AuthProvider with ChangeNotifier {
   bool _isLoading = true;
   String? _error;
 
-  // Mock 모드 여부 (백엔드 연동 전까지 true)
-  static const bool _useMockData = true;
+  // Mock 모드 여부 (백엔드 연동 시 false)
+  static const bool _useMockData = false;
 
   UserModel? get user => _user;
   bool get isAuthenticated => _isAuthenticated;

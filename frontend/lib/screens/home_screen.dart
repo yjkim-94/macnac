@@ -19,8 +19,8 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
-  // Mock 모드 여부 (백엔드 연동 전까지 true)
-  static const bool _useMockData = true;
+  // Mock 모드 여부 (백엔드 연동 시 false)
+  static const bool _useMockData = false;
 
   // Mock 데이터
   final List<NewsArticleModel> _mockArticles = [
