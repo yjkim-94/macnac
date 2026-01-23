@@ -67,6 +67,7 @@ class BriefingService {
     return DailyBriefingModel(
       id: data['id'] ?? '',
       date: DateTime.parse(data['date']),
+      dailySummary: data['daily_summary'],  // 오늘의 한 줄 요약
       newsItems: items.map((item) => _parseNewsItem(item)).toList(),
     );
   }

@@ -2,12 +2,14 @@
 class DailyBriefingModel {
   final String id;
   final DateTime date;
+  final String? dailySummary; // 오늘의 한 줄 요약
   final List<BriefingNewsItem> newsItems; // 5개 뉴스 요약
   final bool isPremium; // 프리미엄 여부
 
   DailyBriefingModel({
     required this.id,
     required this.date,
+    this.dailySummary,
     required this.newsItems,
     this.isPremium = false,
   });

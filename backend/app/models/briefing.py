@@ -12,6 +12,7 @@ class DailyBriefing(Base):
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     briefing_date = Column(Date, unique=True, index=True)
+    daily_summary = Column(String(200), nullable=True)  # 오늘의 한 줄 요약
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # 관계
@@ -28,9 +29,10 @@ class BriefingNewsItem(Base):
 
     # 기본 정보
     title = Column(String(500))
-    summary = Column(Text)  # 2-3문장 요약
+    summary = Column(Text)  # 5-7문장 요약 (배경-사건-영향)
     publisher = Column(String(100))
     source_url = Column(String(1000))
+    category = Column(String(20), nullable=True)  # economy, industry, tech, policy
     tags = Column(String(200))  # 쉼표 구분
 
     # 토핑 (유료)

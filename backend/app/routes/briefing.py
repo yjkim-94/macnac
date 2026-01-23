@@ -4,9 +4,9 @@ from sqlalchemy.orm import Session
 from datetime import date, datetime, timedelta
 from ..database import get_db
 from ..models.briefing import DailyBriefing, BriefingNewsItem
-from ..services.news_filter import filter_investment_news, calculate_investment_score
+from ..services.news_filter import run_pipeline, calculate_investment_score
 from ..services.rss_service import fetch_all_feeds
-from ..services.claude_service import recreate_news, analyze_causality, generate_insights
+from ..services.claude_service import recreate_news, analyze_causality, generate_insights, generate_daily_summary
 import uuid
 
 router = APIRouter(prefix="/briefing", tags=["briefing"])
@@ -88,37 +88,52 @@ async def generate_briefing(
         return {"message": "이미 브리핑이 존재합니다", "briefing_id": existing.id}
 
     # RSS에서 뉴스 수집
-    all_news = fetch_all_feeds(limit_per_feed=7)
+    all_news = fetch_all_feeds(limit_per_feed=10)
 
-    # 투자 관련 뉴스만 필터링
-    filtered_news = filter_investment_news(all_news)
+    # 파이프라인 실행 (필터링 + 분류 + 중복제거 + 균형선정)
+    filtered_news = run_pipeline(all_news, target_count=news_count)
 
     if len(filtered_news) < news_count:
-        filtered_news = all_news[:news_count]  # 부족하면 전체에서 선택
-    else:
-        filtered_news = filtered_news[:news_count]
+        # 부족하면 전체에서 추가 선택
+        filtered_news = all_news[:news_count]
+
+    # 뉴스 아이템 생성 (먼저 재창작하여 제목 수집)
+    news_items_data = []
+    recreated_titles = []
+
+    for i, news in enumerate(filtered_news):
+        original_text = f"{news['title']}. {news['summary']}"
+
+        # Claude API 호출 (재창작)
+        try:
+            recreated = await recreate_news(original_text)
+        except Exception as e:
+            print(f"Claude API error: {e}")
+            recreated = {"title": news["title"], "summary": news["summary"]}
+
+        recreated_titles.append(recreated.get("title", news["title"]))
+        news_items_data.append((news, recreated))
+
+    # 한 줄 요약 생성
+    try:
+        daily_summary = await generate_daily_summary(recreated_titles)
+    except Exception as e:
+        print(f"Daily summary error: {e}")
+        daily_summary = None
 
     # 브리핑 생성
     briefing = DailyBriefing(
         id=str(uuid.uuid4()),
         briefing_date=target_date,
+        daily_summary=daily_summary,
     )
     db.add(briefing)
 
-    # 뉴스 아이템 생성
-    for i, news in enumerate(filtered_news):
-        original_text = f"{news['title']}. {news['summary']}"
-
-        # Claude API 호출 (선택적)
-        try:
-            recreated = await recreate_news(original_text)
-            causalities = await analyze_causality(original_text)
-            insights = await generate_insights(original_text)
-        except Exception as e:
-            print(f"Claude API error: {e}")
-            recreated = {"title": news["title"], "summary": news["summary"]}
-            causalities = []
-            insights = []
+    # 뉴스 아이템 저장
+    for i, (news, recreated) in enumerate(news_items_data):
+        # MVP: 인과관계/인사이트는 생성하지 않음
+        causalities = []
+        insights = []
 
         # 투자 관련성 점수
         score = calculate_investment_score(news["title"], news["summary"])
@@ -131,6 +146,7 @@ async def generate_briefing(
             summary=recreated.get("summary", news["summary"]),
             publisher=news["publisher"],
             source_url=news["source_url"],
+            category=news.get("category", "economy"),  # 분야
             tags=",".join(news.get("tags", [])),
             investment_score=int(score * 100),
         )
@@ -162,6 +178,7 @@ def _format_briefing(briefing: DailyBriefing) -> dict:
     return {
         "id": briefing.id,
         "date": briefing.briefing_date.isoformat(),
+        "daily_summary": briefing.daily_summary,  # 오늘의 한 줄 요약
         "is_today": briefing.briefing_date == date.today(),
         "news_items": [
             {
@@ -171,6 +188,7 @@ def _format_briefing(briefing: DailyBriefing) -> dict:
                 "summary": item.summary,
                 "publisher": item.publisher,
                 "source_url": item.source_url,
+                "category": item.category,  # 분야: economy, industry, tech, policy
                 "tags": item.tags.split(",") if item.tags else [],
                 "investment_score": item.investment_score,
                 "causality": {
