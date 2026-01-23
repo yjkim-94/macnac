@@ -6,6 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 질문에는 핵심만 짧고 간결하게 답변할 것
 - 한국어로 답변할 것
 - 듣는 사람이 비전공자라는 가정 하에 이해하기 쉽게 설명할 것
+- 코드는 최대한 효율적이고 쉽고 간결하게 작성할 것
 
 ## 프로젝트 개요
 
