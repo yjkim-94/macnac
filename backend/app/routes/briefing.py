@@ -6,7 +6,7 @@ from ..database import get_db
 from ..models.briefing import DailyBriefing, BriefingNewsItem
 from ..services.news_filter import run_pipeline, calculate_investment_score
 from ..services.rss_service import fetch_all_feeds
-from ..services.claude_service import recreate_news, analyze_causality, generate_insights, generate_daily_summary
+from ..services.claude_service import recreate_news, generate_daily_summary
 import uuid
 
 router = APIRouter(prefix="/briefing", tags=["briefing"])

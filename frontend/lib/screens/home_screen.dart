@@ -16,7 +16,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   // API vs Mock 모드
-  static const bool _useMockData = true;  // TODO: 배포 시 false로 변경
+  static const bool _useMockData = false;  // TODO: 배포 시 false로 변경
 
   // API 서비스
   final BriefingService _briefingService = BriefingService();

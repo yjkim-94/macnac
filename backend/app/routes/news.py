@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models.news import NewsArticle, CausalityAnalysis, Insight
-from ..services.claude_service import recreate_news, analyze_causality, generate_insights
+from ..services.claude_service import recreate_news
 from ..services.rss_service import fetch_all_feeds
 from ..services.news_pipeline import run_pipeline
 
@@ -57,16 +57,17 @@ async def analyze_recreate(req: AnalyzeRequest):
     return await recreate_news(req.text)
 
 
-@router.post("/analyze/causality")
-async def analyze_causality_endpoint(req: AnalyzeRequest):
-    """인과관계 분석"""
-    return await analyze_causality(req.text)
+# MVP 이후 기능
+# @router.post("/analyze/causality")
+# async def analyze_causality_endpoint(req: AnalyzeRequest):
+#     """인과관계 분석"""
+#     return await analyze_causality(req.text)
 
 
-@router.post("/analyze/insights")
-async def analyze_insights_endpoint(req: AnalyzeRequest):
-    """투자 인사이트 생성"""
-    return await generate_insights(req.text)
+# @router.post("/analyze/insights")
+# async def analyze_insights_endpoint(req: AnalyzeRequest):
+#     """투자 인사이트 생성"""
+#     return await generate_insights(req.text)
 
 
 @router.get("/rss/fetch")

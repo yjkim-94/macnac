@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from sqlalchemy.orm import Session
 from .rss_service import fetch_all_feeds
-from .claude_service import recreate_news, analyze_causality, generate_insights
+from .claude_service import recreate_news
 from ..models.news import NewsArticle, CausalityAnalysis, Insight
 from ..database import SessionLocal
 
@@ -20,14 +20,14 @@ async def process_single_news(article: dict, db: Session) -> NewsArticle | None:
     try:
         # Claude API 호출
         recreated = await recreate_news(original_text)
-        causalities = await analyze_causality(original_text)
-        insights = await generate_insights(original_text)
     except Exception as e:
         print(f"Claude API error: {e}")
         # API 실패시 원본 사용
         recreated = {"title": article["title"], "summary": article["summary"], "content": article["summary"]}
-        causalities = []
-        insights = []
+
+    # MVP: 인과관계/인사이트 미사용
+    causalities = []
+    insights = []
 
     # DB 저장
     news = NewsArticle(
