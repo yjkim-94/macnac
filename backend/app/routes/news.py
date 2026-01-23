@@ -5,6 +5,7 @@ from ..database import get_db
 from ..models.news import NewsArticle, CausalityAnalysis, Insight
 from ..services.claude_service import recreate_news, analyze_causality, generate_insights
 from ..services.rss_service import fetch_all_feeds
+from ..services.news_pipeline import run_pipeline
 
 router = APIRouter(prefix="/news", tags=["news"])
 
@@ -70,5 +71,11 @@ async def analyze_insights_endpoint(req: AnalyzeRequest):
 
 @router.get("/rss/fetch")
 async def fetch_rss_news(limit: int = Query(5, ge=1, le=20)):
-    """RSS에서 최신 뉴스 수집"""
+    """RSS에서 최신 뉴스 수집 (미리보기)"""
     return {"articles": fetch_all_feeds(limit)}
+
+
+@router.post("/rss/process")
+async def process_rss_news(limit: int = Query(3, ge=1, le=10)):
+    """RSS 뉴스 수집 + Claude 분석 + DB 저장"""
+    return await run_pipeline(limit)
