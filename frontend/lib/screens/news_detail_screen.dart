@@ -7,7 +7,7 @@ import '../widgets/causality_widget.dart';
 import '../widgets/insight_widget.dart';
 import '../widgets/source_link_widget.dart';
 
-/// 뉴스 상세 화면
+/// 뉴스 상세 화면 (모노톤)
 class NewsDetailScreen extends StatelessWidget {
   final NewsArticleModel article;
 
@@ -18,86 +18,79 @@ class NewsDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Mock 데이터 (실제로는 API에서 가져옴)
     final newsDetail = _getMockNewsDetail(article);
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: CustomScrollView(
         slivers: [
-          // 앱바 (이미지 헤더)
           _buildSliverAppBar(context),
-
-          // 콘텐츠
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 제목
-                  Hero(
-                    tag: 'news-${article.id}',
-                    child: Material(
-                      color: Colors.transparent,
-                      child: Text(
-                        article.title,
-                        style:
-                            Theme.of(context).textTheme.displaySmall?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  height: 1.3,
-                                ),
+            child: Container(
+              color: AppColors.surface,
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 제목
+                    Text(
+                      article.title,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                        height: 1.3,
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
+                    const SizedBox(height: 16),
 
-                  // 태그
-                  if (article.tags.isNotEmpty) _buildTags(context),
-                  const SizedBox(height: 24),
+                    // 태그
+                    if (article.tags.isNotEmpty) _buildTags(context),
+                    const SizedBox(height: 24),
 
-                  // 재창작된 요약
-                  _buildSection(
-                    context,
-                    icon: Icons.article_outlined,
-                    title: '뉴스 요약',
-                    child: Text(
-                      newsDetail.recreatedContent,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            height: 1.7,
-                            color: AppColors.textPrimary,
-                          ),
+                    // 재창작된 요약
+                    _buildSection(
+                      context,
+                      icon: Icons.article_outlined,
+                      title: '뉴스 요약',
+                      child: Text(
+                        newsDetail.recreatedContent,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          height: 1.7,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 32),
+                    const SizedBox(height: 32),
 
-                  // 구분선
-                  const Divider(height: 1),
-                  const SizedBox(height: 32),
+                    Divider(color: AppColors.border, height: 1),
+                    const SizedBox(height: 32),
 
-                  // 인과관계 분석
-                  CausalityWidget(causalities: newsDetail.causalities),
-                  const SizedBox(height: 32),
+                    // 인과관계 분석
+                    CausalityWidget(causalities: newsDetail.causalities),
+                    const SizedBox(height: 32),
 
-                  // 구분선
-                  const Divider(height: 1),
-                  const SizedBox(height: 32),
+                    Divider(color: AppColors.border, height: 1),
+                    const SizedBox(height: 32),
 
-                  // 투자 인사이트
-                  InsightWidget(insights: newsDetail.insights),
-                  const SizedBox(height: 32),
+                    // 투자 인사이트
+                    InsightWidget(insights: newsDetail.insights),
+                    const SizedBox(height: 32),
 
-                  // 구분선
-                  const Divider(height: 1),
-                  const SizedBox(height: 32),
+                    Divider(color: AppColors.border, height: 1),
+                    const SizedBox(height: 32),
 
-                  // 출처 링크
-                  SourceLinkWidget(
-                    sourceUrl: article.sourceUrl,
-                    publisher: article.publisher,
-                    publishedAt: article.publishedAt,
-                  ),
-                  const SizedBox(height: 40),
-                ],
+                    // 출처 링크
+                    SourceLinkWidget(
+                      sourceUrl: article.sourceUrl,
+                      publisher: article.publisher,
+                      publishedAt: article.publishedAt,
+                    ),
+                    const SizedBox(height: 40),
+                  ],
+                ),
               ),
             ),
           ),
@@ -108,35 +101,32 @@ class NewsDetailScreen extends StatelessWidget {
 
   Widget _buildSliverAppBar(BuildContext context) {
     return SliverAppBar(
-      expandedHeight: 250,
+      expandedHeight: 200,
       pinned: true,
+      backgroundColor: AppColors.surface,
+      foregroundColor: AppColors.textPrimary,
       flexibleSpace: FlexibleSpaceBar(
         background: Stack(
           fit: StackFit.expand,
           children: [
-            // 배경 이미지
             if (article.imageUrl != null)
               Image.network(
                 article.imageUrl!,
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => Container(
-                  color: AppColors.primary.withOpacity(0.1),
+                  color: AppColors.background,
                 ),
               )
             else
-              Container(
-                color: AppColors.primary.withOpacity(0.1),
-              ),
-
-            // 그라데이션 오버레이
+              Container(color: AppColors.background),
             Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
+                    Colors.black.withOpacity(0.1),
                     Colors.black.withOpacity(0.3),
-                    Colors.black.withOpacity(0.7),
                   ],
                 ),
               ),
@@ -155,18 +145,15 @@ class NewsDetailScreen extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.1),
+            color: AppColors.background,
             borderRadius: BorderRadius.circular(6),
-            border: Border.all(
-              color: AppColors.primary.withOpacity(0.3),
-            ),
           ),
           child: Text(
             '#$tag',
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: AppColors.primary,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textSecondary,
             ),
           ),
         );
@@ -189,10 +176,11 @@ class NewsDetailScreen extends StatelessWidget {
             const SizedBox(width: 8),
             Text(
               title,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textSecondary,
-                  ),
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
             ),
           ],
         ),
@@ -202,7 +190,6 @@ class NewsDetailScreen extends StatelessWidget {
     );
   }
 
-  // Mock 데이터 생성
   NewsDetailModel _getMockNewsDetail(NewsArticleModel article) {
     return NewsDetailModel(
       article: article,
@@ -223,13 +210,13 @@ class NewsDetailScreen extends StatelessWidget {
       insights: [
         InsightModel(
           title: '긍정적 실적 전망',
-          content: '전년 대비 20% 증가한 매출은 시장 예상을 상회하는 수치입니다. 이는 향후 분기에도 지속적인 성장이 가능함을 시사합니다.',
+          content: '전년 대비 20% 증가한 매출은 시장 예상을 상회하는 수치입니다.',
           type: InsightType.positive,
           importance: 0.9,
         ),
         InsightModel(
           title: '주가 상승 모멘텀',
-          content: '실적 개선에 따라 단기적으로 주가 상승이 예상됩니다. 다만, 글로벌 경기 둔화 리스크를 주시할 필요가 있습니다.',
+          content: '실적 개선에 따라 단기적으로 주가 상승이 예상됩니다.',
           type: InsightType.general,
           importance: 0.75,
         ),

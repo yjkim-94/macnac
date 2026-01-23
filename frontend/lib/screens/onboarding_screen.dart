@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../config/app_colors.dart';
 
-/// 온보딩 화면
+/// 온보딩 화면 (모노톤)
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -15,22 +15,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   final List<OnboardingPage> _pages = [
     OnboardingPage(
-      title: '뉴스 속 인과관계 분석',
-      description: '단순 요약을 넘어 원인과 결과를 명확히 분석합니다',
-      icon: Icons.analytics_outlined,
-      color: AppColors.primary,
+      title: '데일리 뉴스 브리핑',
+      description: '매일 주요 뉴스를 짧고 쉽게 요약해드립니다',
+      icon: Icons.article_outlined,
     ),
     OnboardingPage(
-      title: '투자 인사이트 제공',
-      description: 'AI가 분석한 투자 관점의 핵심 정보를 제공합니다',
-      icon: Icons.trending_up,
-      color: AppColors.accent,
+      title: '투자 인사이트',
+      description: '뉴스를 읽고 끝이 아닌, 행동 지침을 제공합니다',
+      icon: Icons.lightbulb_outline,
     ),
     OnboardingPage(
-      title: '모듈형 구독제',
+      title: '맞춤형 구독',
       description: '필요한 기능만 선택하는 토핑 방식의 구독 서비스',
-      icon: Icons.layers_outlined,
-      color: AppColors.secondary,
+      icon: Icons.tune,
     ),
   ];
 
@@ -47,7 +44,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         curve: Curves.easeInOut,
       );
     } else {
-      // 로그인 화면으로 이동
       Navigator.of(context).pushReplacementNamed('/login');
     }
   }
@@ -59,15 +55,25 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.surface,
       body: SafeArea(
         child: Column(
           children: [
             // Skip 버튼
             Align(
               alignment: Alignment.topRight,
-              child: TextButton(
-                onPressed: _skip,
-                child: const Text('건너뛰기'),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: TextButton(
+                  onPressed: _skip,
+                  child: const Text(
+                    'Skip',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
               ),
             ),
 
@@ -76,9 +82,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               child: PageView.builder(
                 controller: _pageController,
                 onPageChanged: (index) {
-                  setState(() {
-                    _currentPage = index;
-                  });
+                  setState(() => _currentPage = index);
                 },
                 itemCount: _pages.length,
                 itemBuilder: (context, index) {
@@ -99,18 +103,31 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
             // Next/시작하기 버튼
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
+              padding: const EdgeInsets.symmetric(horizontal: 32),
               child: SizedBox(
                 width: double.infinity,
+                height: 52,
                 child: ElevatedButton(
                   onPressed: _nextPage,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.textPrimary,
+                    foregroundColor: AppColors.textOnDark,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 0,
+                  ),
                   child: Text(
-                    _currentPage == _pages.length - 1 ? '시작하기' : '다음',
+                    _currentPage == _pages.length - 1 ? 'Get Started' : 'Next',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 48),
           ],
         ),
       ),
@@ -119,22 +136,22 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   Widget _buildPage(OnboardingPage page) {
     return Padding(
-      padding: const EdgeInsets.all(32),
+      padding: const EdgeInsets.symmetric(horizontal: 32),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           // Icon
           Container(
-            width: 120,
-            height: 120,
+            width: 100,
+            height: 100,
             decoration: BoxDecoration(
-              color: page.color.withOpacity(0.1),
-              shape: BoxShape.circle,
+              color: AppColors.background,
+              borderRadius: BorderRadius.circular(24),
             ),
             child: Icon(
               page.icon,
-              size: 64,
-              color: page.color,
+              size: 48,
+              color: AppColors.textPrimary,
             ),
           ),
           const SizedBox(height: 48),
@@ -142,9 +159,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           // Title
           Text(
             page.title,
-            style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                  color: AppColors.textPrimary,
-                ),
+            style: const TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+              letterSpacing: -0.5,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
@@ -152,9 +172,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           // Description
           Text(
             page.description,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+            style: const TextStyle(
+              fontSize: 16,
+              color: AppColors.textSecondary,
+              height: 1.5,
+            ),
             textAlign: TextAlign.center,
           ),
         ],
@@ -169,7 +191,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       width: isActive ? 24 : 8,
       height: 8,
       decoration: BoxDecoration(
-        color: isActive ? AppColors.primary : AppColors.border,
+        color: isActive ? AppColors.textPrimary : AppColors.border,
         borderRadius: BorderRadius.circular(4),
       ),
     );
@@ -181,12 +203,10 @@ class OnboardingPage {
   final String title;
   final String description;
   final IconData icon;
-  final Color color;
 
   OnboardingPage({
     required this.title,
     required this.description,
     required this.icon,
-    required this.color,
   });
 }

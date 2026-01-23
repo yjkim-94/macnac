@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../config/app_colors.dart';
 import '../models/causality_model.dart';
 
-/// 인과관계 표시 위젯
+/// 인과관계 표시 위젯 (신뢰도 그래프 제거)
 class CausalityWidget extends StatelessWidget {
   final List<CausalityModel> causalities;
 
@@ -22,27 +22,23 @@ class CausalityWidget extends StatelessWidget {
       children: [
         // 섹션 헤더
         Row(
-          children: [
-            Icon(
-              Icons.analytics_outlined,
-              color: AppColors.primary,
-              size: 24,
-            ),
-            const SizedBox(width: 8),
+          children: const [
+            Icon(Icons.link, color: AppColors.textSecondary, size: 20),
+            SizedBox(width: 8),
             Text(
               '인과관계 분석',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
             ),
           ],
         ),
         const SizedBox(height: 16),
 
         // 인과관계 목록
-        ...causalities.map((causality) => _CausalityItem(
-              causality: causality,
-            )),
+        ...causalities.map((causality) => _CausalityItem(causality: causality)),
       ],
     );
   }
@@ -58,100 +54,45 @@ class _CausalityItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.primary.withOpacity(0.2),
-          width: 1,
-        ),
-      ),
       child: Column(
         children: [
           // 원인 (Cause)
           _buildBox(
-            context,
             label: '원인',
             content: causality.cause,
-            color: AppColors.secondary,
           ),
 
           // 화살표
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
             child: Icon(
               Icons.arrow_downward,
-              color: AppColors.primary,
-              size: 32,
+              color: AppColors.textTertiary,
+              size: 24,
             ),
           ),
 
           // 결과 (Effect)
           _buildBox(
-            context,
             label: '결과',
             content: causality.effect,
-            color: AppColors.accent,
           ),
-
-          // 신뢰도
-          if (causality.confidence > 0)
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Row(
-                children: [
-                  Text(
-                    '신뢰도:',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: causality.confidence,
-                        minHeight: 8,
-                        backgroundColor: AppColors.border,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          _getConfidenceColor(causality.confidence),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${(causality.confidence * 100).toStringAsFixed(0)}%',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                ],
-              ),
-            ),
         ],
       ),
     );
   }
 
-  Widget _buildBox(
-    BuildContext context, {
+  Widget _buildBox({
     required String label,
     required String content,
-    required Color color,
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: color.withOpacity(0.3),
-          width: 2,
-        ),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border, width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -160,15 +101,15 @@ class _CausalityItem extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: AppColors.background,
               borderRadius: BorderRadius.circular(4),
             ),
             child: Text(
               label,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: color,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
               ),
             ),
           ),
@@ -177,23 +118,14 @@ class _CausalityItem extends StatelessWidget {
           // 내용
           Text(
             content,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textPrimary,
-                  height: 1.5,
-                ),
+            style: const TextStyle(
+              fontSize: 15,
+              color: AppColors.textPrimary,
+              height: 1.5,
+            ),
           ),
         ],
       ),
     );
-  }
-
-  Color _getConfidenceColor(double confidence) {
-    if (confidence >= 0.8) {
-      return AppColors.success;
-    } else if (confidence >= 0.5) {
-      return AppColors.warning;
-    } else {
-      return AppColors.error;
-    }
   }
 }

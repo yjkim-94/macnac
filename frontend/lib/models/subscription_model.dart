@@ -1,9 +1,11 @@
+import 'package:flutter/material.dart';
+
 /// 구독 토핑 모델
 class SubscriptionToppingModel {
   final String id;
   final String name;
   final String description;
-  final String icon;
+  final IconData icon;
   final int price; // 월 가격 (원)
   final bool isPopular;
 

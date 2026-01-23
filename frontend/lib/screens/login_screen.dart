@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../config/app_colors.dart';
 import '../providers/auth_provider.dart';
 
-/// 로그인 화면
+/// 로그인 화면 (모노톤)
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -67,47 +67,74 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.surface,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.symmetric(horizontal: 32),
             child: Form(
               key: _formKey,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  const SizedBox(height: 48),
+
                   // Logo & Title
-                  Icon(
-                    Icons.analytics_outlined,
-                    size: 80,
-                    color: AppColors.primary,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
+                  const Text(
                     'MACNAC',
-                    style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
+                    style: TextStyle(
+                      fontSize: 36,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                      letterSpacing: -1,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    '뉴스 인과관계 분석 서비스',
-                    style: Theme.of(context).textTheme.bodyMedium,
+                  const Text(
+                    'AI-Powered News Intelligence',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textSecondary,
+                      letterSpacing: 0.5,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 48),
 
                   // Email Field
+                  const Text(
+                    'Email',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
-                      labelText: '이메일',
-                      hintText: 'example@email.com',
-                      prefixIcon: Icon(Icons.email_outlined),
+                    style: const TextStyle(color: AppColors.textPrimary),
+                    decoration: InputDecoration(
+                      hintText: 'your@email.com',
+                      hintStyle: const TextStyle(color: AppColors.textTertiary),
+                      prefixIcon: const Icon(Icons.mail_outline, color: AppColors.textSecondary),
+                      filled: true,
+                      fillColor: AppColors.background,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppColors.textPrimary, width: 1),
+                      ),
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
@@ -119,27 +146,48 @@ class _LoginScreenState extends State<LoginScreen> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
 
                   // Password Field
+                  const Text(
+                    'Password',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   TextFormField(
                     controller: _passwordController,
                     obscureText: !_isPasswordVisible,
+                    style: const TextStyle(color: AppColors.textPrimary),
                     decoration: InputDecoration(
-                      labelText: '비밀번호',
-                      hintText: '비밀번호를 입력하세요',
-                      prefixIcon: const Icon(Icons.lock_outline),
+                      hintText: '********',
+                      hintStyle: const TextStyle(color: AppColors.textTertiary),
+                      prefixIcon: const Icon(Icons.lock_outline, color: AppColors.textSecondary),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _isPasswordVisible
-                              ? Icons.visibility_off
-                              : Icons.visibility,
+                          _isPasswordVisible ? Icons.visibility_off : Icons.visibility,
+                          color: AppColors.textSecondary,
                         ),
                         onPressed: () {
-                          setState(() {
-                            _isPasswordVisible = !_isPasswordVisible;
-                          });
+                          setState(() => _isPasswordVisible = !_isPasswordVisible);
                         },
+                      ),
+                      filled: true,
+                      fillColor: AppColors.background,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppColors.textPrimary, width: 1),
                       ),
                     ),
                     validator: (value) {
@@ -152,73 +200,117 @@ class _LoginScreenState extends State<LoginScreen> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 32),
 
                   // Login Button
                   SizedBox(
-                    height: 54,
+                    height: 52,
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _handleLogin,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.textPrimary,
+                        foregroundColor: AppColors.textOnDark,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
                       child: _isLoading
                           ? const SizedBox(
                               height: 20,
                               width: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: Colors.white,
+                                color: AppColors.textOnDark,
                               ),
                             )
-                          : const Text('로그인'),
+                          : const Text(
+                              'Login',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
 
                   // Divider
                   Row(
                     children: [
-                      const Expanded(child: Divider()),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                      Expanded(child: Divider(color: AppColors.border)),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16),
                         child: Text(
-                          '또는',
-                          style: Theme.of(context).textTheme.bodySmall,
+                          'or',
+                          style: TextStyle(
+                            color: AppColors.textTertiary,
+                            fontSize: 14,
+                          ),
                         ),
                       ),
-                      const Expanded(child: Divider()),
+                      Expanded(child: Divider(color: AppColors.border)),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
 
                   // Google Login Button
                   SizedBox(
-                    height: 54,
+                    height: 52,
                     child: OutlinedButton.icon(
                       onPressed: _isLoading ? null : _handleGoogleLogin,
-                      icon: const Icon(Icons.g_mobiledata, size: 28),
-                      label: const Text('Google로 계속하기'),
+                      icon: const Text(
+                        'G',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      label: const Text(
+                        'Sign in with Google',
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: AppColors.border),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 32),
 
                   // Sign Up Link
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
-                        '계정이 없으신가요?',
-                        style: Theme.of(context).textTheme.bodyMedium,
+                      const Text(
+                        "Don't have an account?",
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 14,
+                        ),
                       ),
                       TextButton(
                         onPressed: () {
                           Navigator.of(context).pushNamed('/signup');
                         },
-                        child: const Text('회원가입'),
+                        child: const Text(
+                          'Sign up',
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
                       ),
                     ],
                   ),
+                  const SizedBox(height: 48),
                 ],
               ),
             ),

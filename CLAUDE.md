@@ -7,15 +7,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 한국어로 답변할 것
 - 듣는 사람이 비전공자라는 가정 하에 이해하기 쉽게 설명할 것
 - 코드는 최대한 효율적이고 쉽고 간결하게 작성할 것
+- 커밋메세지를 작성해달라는 요청엔 메세지만 작성할 것
 
 ## 프로젝트 개요
 
-**MACNAC: 뉴스 인과관계 분석 및 투자 인사이트 서비스**
+**MACNAC: 데일리 뉴스 요약 및 투자 인사이트 서비스**
 
 ### 서비스 핵심
-- 단순 뉴스 요약을 넘어선 **인과관계(Causality) 분석**과 **투자 인사이트** 제공
-- AI 기반 뉴스 재창작을 통한 독자적 콘텐츠 생성
-- 기능별 토핑(Topping) 형태의 **모듈형 구독제** 비즈니스 모델
+1. **데일리 뉴스 요약** - 매일 주요 뉴스를 짧고 쉽게 전달
+2. **투자 인사이트** - 뉴스를 읽고 끝이 아닌, 행동 지침 제공
+
+### 부가 기능
+- 인과관계(Causality) 분석
+- AI 기반 뉴스 재창작
+- 모듈형 구독제 (토핑 모델)
 
 ### 저작권 가드레일 (필수 준수)
 
@@ -273,6 +278,118 @@ pytest tests/test_copyright.py -v
 cd frontend
 flutter test
 ```
+
+## UI/UX 디자인 가이드 (일관성 유지)
+
+### 색상 시스템 (모노톤)
+
+```dart
+// Primary (검정 계열)
+textPrimary: #1A1A1A    // 주요 텍스트, 버튼
+textSecondary: #666666  // 보조 텍스트, 아이콘
+textTertiary: #999999   // 비활성 텍스트
+
+// Background
+background: #FAFAFA     // 페이지 배경
+surface: #FFFFFF        // 카드, 컨테이너 배경
+
+// Border
+border: #E0E0E0         // 테두리
+divider: #EEEEEE        // 구분선
+
+// Status (최소 사용)
+error: #D32F2F          // 에러, 로그아웃
+```
+
+### 타이포그래피
+
+| 용도 | 크기 | 굵기 | 색상 |
+|------|------|------|------|
+| 페이지 제목 | 24-28px | w700 | textPrimary |
+| 섹션 제목 | 18px | w700 | textPrimary |
+| 카드 제목 | 15-16px | w600 | textPrimary |
+| 본문 | 14-15px | normal | textPrimary |
+| 보조 텍스트 | 12-13px | normal | textSecondary |
+| 라벨/뱃지 | 10-11px | w600 | textSecondary |
+
+### 간격 및 레이아웃
+
+```
+페이지 패딩: 20px
+카드 패딩: 16px
+카드 간격: 12px
+섹션 간격: 32px
+요소 간격: 8px, 12px, 16px (8px 배수)
+```
+
+### 컴포넌트 스타일
+
+**카드**
+```dart
+borderRadius: 12px
+border: 1px solid border (#E0E0E0)
+elevation: 0 (그림자 없음)
+background: surface (#FFFFFF)
+```
+
+**버튼 (Primary)**
+```dart
+borderRadius: 12px
+height: 48-52px
+background: textPrimary (#1A1A1A)
+foreground: textOnDark (#FAFAFA)
+elevation: 0
+```
+
+**버튼 (Outlined)**
+```dart
+borderRadius: 12px
+border: 1px solid border
+background: transparent
+```
+
+**입력 필드**
+```dart
+borderRadius: 12px
+filled: true
+fillColor: background (#FAFAFA)
+border: none (기본), textPrimary (포커스)
+```
+
+**뱃지/라벨**
+```dart
+borderRadius: 4px
+padding: 6px 10px (horizontal), 4px (vertical)
+background: textPrimary (강조), background (일반)
+```
+
+### 화면별 필수 설정
+
+모든 화면에서 반드시 명시적으로 설정:
+```dart
+Scaffold(
+  backgroundColor: AppColors.background,  // 또는 surface
+  appBar: AppBar(
+    backgroundColor: AppColors.surface,
+    foregroundColor: AppColors.textPrimary,
+    elevation: 0,
+  ),
+)
+```
+
+### 아이콘 사용
+
+- 기본 색상: `AppColors.textSecondary`
+- 활성/선택: `AppColors.textPrimary`
+- 크기: 20-24px (일반), 28px (강조)
+- Material Icons 사용 (outlined 버전 우선)
+
+### 금지 사항
+
+- 파란색/보라색 그라데이션 사용 금지
+- elevation/그림자 사용 최소화
+- 테마 기본값에 의존하지 말 것 (명시적 색상 지정)
+- 신뢰도 그래프/퍼센트 표시 금지
 
 ## 참고 문서
 

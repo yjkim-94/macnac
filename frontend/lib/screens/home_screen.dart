@@ -1,14 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../config/app_colors.dart';
-import '../models/news_article_model.dart';
-import '../providers/auth_provider.dart';
-import '../providers/news_provider.dart';
-import '../widgets/bento_grid.dart';
-import '../widgets/loading_widget.dart';
-import '../widgets/error_widget.dart';
+import '../models/briefing_model.dart';
+import '../services/briefing_service.dart';
 
-/// 홈 화면 - Bento Grid 뉴스 피드
+/// 홈 화면 - 데일리 브리핑
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -19,379 +15,544 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
-  // Mock 모드 여부 (백엔드 연동 시 false)
+  // API vs Mock 모드
   static const bool _useMockData = false;
 
-  // Mock 데이터
-  final List<NewsArticleModel> _mockArticles = [
-    NewsArticleModel(
-      id: '1',
-      title: '테슬라, 3분기 실적 발표... 전년比 20% 증가',
-      summary: '테슬라가 3분기 실적을 발표하며 전년 대비 매출 20% 증가를 기록했습니다.',
-      imageUrl: 'https://picsum.photos/400/300?random=1',
-      publisher: '경제신문',
-      sourceUrl: 'https://example.com/news/1',
-      publishedAt: DateTime.now().subtract(const Duration(hours: 2)),
-      tileSize: GridTileSize.large,
-      tags: ['테슬라', '실적'],
-    ),
-    NewsArticleModel(
-      id: '2',
-      title: '반도체 시장 회복세... 삼성전자 주가 상승',
-      summary: '반도체 시장의 회복세에 따라 삼성전자 주가가 급등했습니다.',
-      imageUrl: 'https://picsum.photos/400/300?random=2',
-      publisher: '기술뉴스',
-      sourceUrl: 'https://example.com/news/2',
-      publishedAt: DateTime.now().subtract(const Duration(hours: 5)),
-      tileSize: GridTileSize.small,
-      tags: ['반도체'],
-    ),
-    NewsArticleModel(
-      id: '3',
-      title: '금리 인하 전망에 부동산 시장 활기',
-      summary: '중앙은행의 금리 인하 전망으로 부동산 거래량이 증가하고 있습니다.',
-      imageUrl: 'https://picsum.photos/400/300?random=3',
-      publisher: '부동산뉴스',
-      sourceUrl: 'https://example.com/news/3',
-      publishedAt: DateTime.now().subtract(const Duration(hours: 8)),
-      tileSize: GridTileSize.small,
-      tags: ['부동산'],
-    ),
-    NewsArticleModel(
-      id: '4',
-      title: 'AI 스타트업 시리즈 B 투자 유치 성공',
-      summary: 'AI 기반 서비스를 제공하는 스타트업이 대규모 투자를 유치했습니다.',
-      imageUrl: 'https://picsum.photos/400/300?random=4',
-      publisher: '스타트업뉴스',
-      sourceUrl: 'https://example.com/news/4',
-      publishedAt: DateTime.now().subtract(const Duration(days: 1)),
-      tileSize: GridTileSize.wide,
-      tags: ['AI', '투자'],
-    ),
-    NewsArticleModel(
-      id: '5',
-      title: '코스피 2,700선 회복... 외국인 순매수 지속',
-      summary: '코스피 지수가 2,700선을 회복하며 상승세를 이어가고 있습니다.',
-      imageUrl: 'https://picsum.photos/400/300?random=5',
-      publisher: '증권뉴스',
-      sourceUrl: 'https://example.com/news/5',
-      publishedAt: DateTime.now().subtract(const Duration(hours: 3)),
-      tileSize: GridTileSize.small,
-      tags: ['코스피'],
-    ),
-    NewsArticleModel(
-      id: '6',
-      title: '전기차 배터리 기술 혁신... 주행거리 2배 증가',
-      summary: '신규 배터리 기술로 전기차 주행거리가 크게 향상될 전망입니다.',
-      imageUrl: 'https://picsum.photos/400/300?random=6',
-      publisher: '과학기술',
-      sourceUrl: 'https://example.com/news/6',
-      publishedAt: DateTime.now().subtract(const Duration(hours: 12)),
-      tileSize: GridTileSize.tall,
-      tags: ['전기차', '기술'],
-    ),
-  ];
+  // API 서비스
+  final BriefingService _briefingService = BriefingService();
+
+  // 브리핑 데이터
+  DailyBriefingModel? _todayBriefing;
+  List<DailyBriefingModel> _pastBriefings = [];
+  bool _isLoading = true;
+  String? _error;
+
+  // 지난 브리핑 보관 기간 (무료: 7일)
+  static const int _freeRetentionDays = 7;
 
   @override
   void initState() {
     super.initState();
-    // API 모드일 때만 데이터 로드
-    if (!_useMockData) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        context.read<NewsProvider>().loadNews();
-      });
+    _loadBriefings();
+  }
+
+  Future<void> _loadBriefings() async {
+    if (_useMockData) {
+      _loadMockData();
+      return;
     }
-  }
 
-  void _onArticleTap(NewsArticleModel article) {
-    Navigator.of(context).pushNamed('/detail', arguments: article);
-  }
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
 
-  void _onBottomNavTap(int index) {
-    if (index == 1) {
-      Navigator.of(context).pushNamed('/subscription');
-    } else if (index == 2) {
-      Navigator.of(context).pushNamed('/profile');
-    } else {
+    try {
+      final today = await _briefingService.getTodayBriefing();
+
       setState(() {
-        _selectedIndex = index;
+        _todayBriefing = today;
+        _pastBriefings = []; // API에서 지난 브리핑도 조회 가능
+        _isLoading = false;
       });
+    } catch (e) {
+      setState(() {
+        _error = '브리핑을 불러올 수 없습니다';
+        _isLoading = false;
+      });
+      // API 실패시 Mock 데이터로 폴백
+      _loadMockData();
     }
+  }
+
+  void _loadMockData() {
+    final mockBriefings = _generateMockBriefings();
+    setState(() {
+      _todayBriefing = mockBriefings.first;
+      _pastBriefings = mockBriefings.skip(1).toList();
+      _isLoading = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Row(
+      backgroundColor: AppColors.background,
+      appBar: _buildAppBar(),
+      body: _selectedIndex == 0 ? _buildBriefingBody() : _buildPlaceholder(),
+      bottomNavigationBar: _buildBottomNav(),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      backgroundColor: AppColors.surface,
+      elevation: 0,
+      title: const Text(
+        'MACNAC',
+        style: TextStyle(
+          color: AppColors.textPrimary,
+          fontWeight: FontWeight.w700,
+          fontSize: 24,
+          letterSpacing: -0.5,
+        ),
+      ),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.notifications_none, color: AppColors.textPrimary),
+          onPressed: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('알림 기능 준비중')),
+            );
+          },
+        ),
+        const SizedBox(width: 8),
+      ],
+    );
+  }
+
+  Widget _buildBottomNav() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border(top: BorderSide(color: AppColors.border, width: 1)),
+      ),
+      child: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: (index) {
+          if (index == 1) {
+            Navigator.of(context).pushNamed('/subscription');
+          } else if (index == 2) {
+            Navigator.of(context).pushNamed('/profile');
+          } else {
+            setState(() => _selectedIndex = index);
+          }
+        },
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        selectedItemColor: AppColors.textPrimary,
+        unselectedItemColor: AppColors.textTertiary,
+        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+        unselectedLabelStyle: const TextStyle(fontSize: 12),
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.layers_outlined), activeIcon: Icon(Icons.layers), label: 'Subscription'),
+          BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Profile'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBriefingBody() {
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.textPrimary),
+      );
+    }
+
+    if (_todayBriefing == null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.analytics_outlined,
-              color: AppColors.primary,
-              size: 28,
+            const Icon(Icons.article_outlined, size: 64, color: AppColors.textTertiary),
+            const SizedBox(height: 16),
+            const Text(
+              '오늘의 브리핑이 없습니다',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
             ),
-            const SizedBox(width: 8),
-            const Text('MACNAC'),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: _loadBriefings,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.textPrimary,
+                foregroundColor: AppColors.textOnDark,
+              ),
+              child: const Text('새로고침'),
+            ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: _showSearchDialog,
-          ),
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('알림 기능 (추후 구현)')),
-              );
-            },
-          ),
-        ],
-      ),
-      body: _selectedIndex == 0 ? _buildNewsBody() : _buildPlaceholder(),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: _onBottomNavTap,
-        selectedItemColor: AppColors.primary,
-        unselectedItemColor: AppColors.textSecondary,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: '홈',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.layers_outlined),
-            activeIcon: Icon(Icons.layers),
-            label: '구독',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            activeIcon: Icon(Icons.person),
-            label: '프로필',
-          ),
-        ],
-      ),
-      floatingActionButton: _selectedIndex == 0
-          ? FloatingActionButton(
-              onPressed: _showFilterDialog,
-              backgroundColor: AppColors.primary,
-              child: const Icon(Icons.tune),
-            )
-          : null,
-    );
-  }
-
-  /// 뉴스 피드 빌드
-  Widget _buildNewsBody() {
-    if (_useMockData) {
-      return _buildMockNewsGrid();
+      );
     }
-    return _buildApiNewsGrid();
-  }
 
-  /// Mock 데이터 그리드
-  Widget _buildMockNewsGrid() {
     return RefreshIndicator(
-      onRefresh: _handleRefresh,
-      child: BentoGrid(
-        articles: _mockArticles,
-        onTileTap: _onArticleTap,
-        crossAxisCount: 2,
-        spacing: 12,
+      color: AppColors.textPrimary,
+      onRefresh: _loadBriefings,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildDateHeader(),
+              const SizedBox(height: 20),
+              _buildTodayBriefingCard(_todayBriefing!),
+              const SizedBox(height: 32),
+              if (_pastBriefings.isNotEmpty) ...[
+                _buildSectionHeader('지난 브리핑', '최근 $_freeRetentionDays일'),
+                const SizedBox(height: 16),
+                _buildPastBriefingList(_pastBriefings),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  /// API 연동 그리드
-  Widget _buildApiNewsGrid() {
-    return Consumer<NewsProvider>(
-      builder: (context, newsProvider, child) {
-        // 로딩 상태
-        if (newsProvider.listState == LoadingState.loading &&
-            newsProvider.articles.isEmpty) {
-          return const LoadingWidget(message: '뉴스를 불러오는 중...');
-        }
+  Widget _buildDateHeader() {
+    final now = DateTime.now();
+    final weekdays = ['월', '화', '수', '목', '금', '토', '일'];
+    final weekday = weekdays[now.weekday - 1];
 
-        // 에러 상태
-        if (newsProvider.listState == LoadingState.error &&
-            newsProvider.articles.isEmpty) {
-          return AppErrorWidget(
-            message: newsProvider.listError ?? '뉴스를 불러올 수 없습니다.',
-            onRetry: () => newsProvider.retryLoadNews(),
-          );
-        }
+    return Text(
+      '${now.month}월 ${now.day}일 ${weekday}요일',
+      style: const TextStyle(
+        color: AppColors.textSecondary,
+        fontSize: 14,
+        fontWeight: FontWeight.w500,
+      ),
+    );
+  }
 
-        // 빈 상태
-        if (newsProvider.articles.isEmpty) {
-          return const EmptyWidget(
-            title: '뉴스가 없습니다',
-            message: '새로운 뉴스를 기다려주세요.',
-            icon: Icons.article_outlined,
-          );
-        }
+  Widget _buildTodayBriefingCard(DailyBriefingModel briefing) {
+    return GestureDetector(
+      onTap: () => _openBriefingDetail(briefing),
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border, width: 1),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppColors.textPrimary,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.article_outlined, color: AppColors.textOnDark, size: 24),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      "TODAY'S BRIEFING",
+                      style: TextStyle(
+                        color: AppColors.textOnDark,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '${briefing.newsItems.length}개 뉴스',
+                      style: const TextStyle(
+                        color: AppColors.textOnDark,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '오늘의 뉴스 브리핑',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ...briefing.newsItems.take(3).map((item) => _buildNewsPreviewItem(item)),
+                  if (briefing.newsItems.length > 3) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      '+${briefing.newsItems.length - 3}개 더보기',
+                      style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  Row(
+                    children: const [
+                      Text('전체 보기', style: TextStyle(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
+                      SizedBox(width: 4),
+                      Icon(Icons.arrow_forward, size: 16, color: AppColors.textPrimary),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-        // 데이터 표시
-        return RefreshIndicator(
-          onRefresh: () => newsProvider.loadNews(refresh: true),
-          child: NotificationListener<ScrollNotification>(
-            onNotification: (notification) {
-              // 무한 스크롤
-              if (notification is ScrollEndNotification &&
-                  notification.metrics.extentAfter < 200) {
-                newsProvider.loadMoreNews();
-              }
-              return false;
-            },
+  Widget _buildNewsPreviewItem(BriefingNewsItem item) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            margin: const EdgeInsets.only(top: 8),
+            decoration: const BoxDecoration(color: AppColors.textPrimary, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: BentoGrid(
-                    articles: newsProvider.articles,
-                    onTileTap: _onArticleTap,
-                    crossAxisCount: 2,
-                    spacing: 12,
-                  ),
+                Text(
+                  item.title,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.textPrimary, height: 1.4),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                // 추가 로딩 표시
-                if (newsProvider.isListLoading && newsProvider.articles.isNotEmpty)
-                  const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: LoadingWidget(size: 24),
-                  ),
+                const SizedBox(height: 4),
+                Text(item.publisher, style: const TextStyle(fontSize: 12, color: AppColors.textTertiary)),
               ],
             ),
           ),
-        );
-      },
-    );
-  }
-
-  /// 플레이스홀더
-  Widget _buildPlaceholder() {
-    return Center(
-      child: Text(
-        '화면 준비 중',
-        style: Theme.of(context).textTheme.headlineMedium,
+        ],
       ),
     );
   }
 
-  /// 새로고침 처리
-  Future<void> _handleRefresh() async {
-    if (_useMockData) {
-      await Future.delayed(const Duration(seconds: 1));
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('새로고침 완료')),
-        );
-      }
-    } else {
-      await context.read<NewsProvider>().loadNews(refresh: true);
-    }
+  Widget _buildSectionHeader(String title, String subtitle) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(title, style: const TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
+        Text(subtitle, style: const TextStyle(color: AppColors.textTertiary, fontSize: 12)),
+      ],
+    );
   }
 
-  /// 검색 다이얼로그
-  void _showSearchDialog() {
-    showDialog(
-      context: context,
-      builder: (context) {
-        String query = '';
-        return AlertDialog(
-          title: const Text('뉴스 검색'),
-          content: TextField(
-            autofocus: true,
-            decoration: const InputDecoration(
-              hintText: '검색어를 입력하세요',
-              prefixIcon: Icon(Icons.search),
+  Widget _buildPastBriefingList(List<DailyBriefingModel> briefings) {
+    return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: briefings.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (context, index) => _buildPastBriefingItem(briefings[index]),
+    );
+  }
+
+  Widget _buildPastBriefingItem(DailyBriefingModel briefing) {
+    final dateFormat = DateFormat('M/d');
+    return GestureDetector(
+      onTap: () => _openBriefingDetail(briefing),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.border, width: 1),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(8)),
+              child: Center(
+                child: Text(dateFormat.format(briefing.date), style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
+              ),
             ),
-            onChanged: (value) => query = value,
-            onSubmitted: (value) {
-              Navigator.pop(context);
-              _performSearch(value);
-            },
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('취소'),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('${briefing.date.month}월 ${briefing.date.day}일 브리핑', style: const TextStyle(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 4),
+                  Text('${briefing.newsItems.length}개 뉴스 요약', style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                ],
+              ),
             ),
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _performSearch(query);
-              },
-              child: const Text('검색'),
-            ),
+            const Icon(Icons.chevron_right, color: AppColors.textTertiary, size: 20),
           ],
-        );
-      },
+        ),
+      ),
     );
   }
 
-  /// 검색 수행
-  void _performSearch(String query) {
-    if (query.isEmpty) return;
-
-    if (_useMockData) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('검색: $query (Mock 모드)')),
-      );
-    } else {
-      context.read<NewsProvider>().searchNews(query);
-      // TODO: 검색 결과 화면으로 이동
-    }
+  void _openBriefingDetail(DailyBriefingModel briefing) {
+    Navigator.of(context).push(MaterialPageRoute(builder: (context) => BriefingDetailScreen(briefing: briefing)));
   }
 
-  /// 필터 다이얼로그
-  void _showFilterDialog() {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+  Widget _buildPlaceholder() {
+    return Center(child: Text('준비중', style: TextStyle(color: AppColors.textSecondary)));
+  }
+}
+
+/// 브리핑 상세 화면
+class BriefingDetailScreen extends StatelessWidget {
+  final DailyBriefingModel briefing;
+  const BriefingDetailScreen({super.key, required this.briefing});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.surface,
+        elevation: 0,
+        foregroundColor: AppColors.textPrimary,
+        title: Text('${briefing.date.month}월 ${briefing.date.day}일 브리핑', style: const TextStyle(fontWeight: FontWeight.w600)),
       ),
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+      body: ListView.builder(
+        padding: const EdgeInsets.all(20),
+        itemCount: briefing.newsItems.length,
+        itemBuilder: (context, index) => _buildNewsCard(context, briefing.newsItems[index], index + 1),
+      ),
+    );
+  }
+
+  Widget _buildNewsCard(BuildContext context, BriefingNewsItem item, int number) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border, width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Text(
-                '필터 & 정렬',
-                style: Theme.of(context).textTheme.headlineMedium,
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(color: AppColors.textPrimary, borderRadius: BorderRadius.circular(6)),
+                child: Center(child: Text('$number', style: const TextStyle(color: AppColors.textOnDark, fontSize: 12, fontWeight: FontWeight.w600))),
               ),
-              const SizedBox(height: 16),
-              ListTile(
-                leading: const Icon(Icons.access_time),
-                title: const Text('최신순'),
-                onTap: () {
-                  Navigator.pop(context);
-                  if (!_useMockData) {
-                    context.read<NewsProvider>().setSortBy('latest');
-                  }
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.trending_up),
-                title: const Text('인기순'),
-                onTap: () {
-                  Navigator.pop(context);
-                  if (!_useMockData) {
-                    context.read<NewsProvider>().setSortBy('popular');
-                  }
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.bookmark_outline),
-                title: const Text('관심 태그'),
-                onTap: () => Navigator.pop(context),
-              ),
+              const SizedBox(width: 12),
+              Text(item.publisher, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+              const Spacer(),
+              if (item.tags.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(4)),
+                  child: Text('#${item.tags.first}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+                ),
             ],
           ),
-        );
-      },
+          const SizedBox(height: 12),
+          Text(item.title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: AppColors.textPrimary, height: 1.4)),
+          const SizedBox(height: 12),
+          Text(item.summary, style: const TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.6)),
+          if (item.causality != null) ...[const SizedBox(height: 16), _buildCausalitySection(item.causality!)],
+          if (item.insight != null) ...[const SizedBox(height: 16), _buildInsightSection(item.insight!)],
+          const SizedBox(height: 16),
+          GestureDetector(
+            onTap: () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('원문: ${item.sourceUrl}'))),
+            child: Row(
+              children: const [
+                Icon(Icons.open_in_new, size: 14, color: AppColors.textTertiary),
+                SizedBox(width: 4),
+                Text('원문 보기', style: TextStyle(fontSize: 12, color: AppColors.textTertiary, decoration: TextDecoration.underline)),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
+
+  Widget _buildCausalitySection(CausalityItem causality) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(8)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: const [Icon(Icons.link, size: 14, color: AppColors.textSecondary), SizedBox(width: 6), Text('인과관계', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary))]),
+          const SizedBox(height: 8),
+          Text('${causality.cause} -> ${causality.effect}', style: const TextStyle(fontSize: 13, color: AppColors.textPrimary)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInsightSection(InsightItem insight) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(8)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.lightbulb_outline, size: 14, color: AppColors.textSecondary),
+              const SizedBox(width: 6),
+              const Text('투자 인사이트', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+              const Spacer(),
+              _buildInsightBadge(insight.type),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(insight.title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+          const SizedBox(height: 4),
+          Text(insight.content, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInsightBadge(InsightType type) {
+    final (label, color) = switch (type) {
+      InsightType.positive => ('긍정', const Color(0xFF2E7D32)),
+      InsightType.negative => ('부정', const Color(0xFFD32F2F)),
+      InsightType.neutral => ('중립', AppColors.textSecondary),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+      child: Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: color)),
+    );
+  }
+}
+
+/// Mock 데이터 생성
+List<DailyBriefingModel> _generateMockBriefings() {
+  final now = DateTime.now();
+  return List.generate(7, (index) {
+    final date = now.subtract(Duration(days: index));
+    return DailyBriefingModel(
+      id: 'briefing_$index',
+      date: date,
+      newsItems: [
+        BriefingNewsItem(id: '${index}_1', title: '코스피 2,700선 돌파, 반도체 대형주 주도', summary: '코스피 지수가 2,700선을 돌파하며 상승 마감했다. 삼성전자와 SK하이닉스 등 반도체 대형주가 상승을 주도했다.', publisher: '한국경제', sourceUrl: 'https://hankyung.com/1', tags: ['코스피'], causality: index == 0 ? CausalityItem(cause: 'AI 반도체 수요 증가', effect: '반도체 주가 상승') : null, insight: index == 0 ? InsightItem(title: '반도체 섹터 비중 확대', content: 'AI 수요 지속 전망', type: InsightType.positive) : null),
+        BriefingNewsItem(id: '${index}_2', title: '미 연준 금리 동결, 연내 인하 시사', summary: '미국 연방준비제도가 기준금리를 동결하면서도 연내 금리 인하 가능성을 시사했다.', publisher: '매일경제', sourceUrl: 'https://mk.co.kr/2', tags: ['금리'], causality: index == 0 ? CausalityItem(cause: '금리 인하 기대', effect: '성장주 반등') : null, insight: index == 0 ? InsightItem(title: '성장주 점검', content: '금리 인하시 수혜', type: InsightType.positive) : null),
+        BriefingNewsItem(id: '${index}_3', title: '테슬라 1분기 인도량 예상치 하회', summary: '테슬라의 1분기 차량 인도량이 시장 예상치를 하회했다.', publisher: '서울경제', sourceUrl: 'https://sedaily.com/3', tags: ['전기차'], insight: index == 0 ? InsightItem(title: '전기차 신중 접근', content: '경쟁 심화', type: InsightType.negative) : null),
+        BriefingNewsItem(id: '${index}_4', title: '삼성바이오 대규모 수주 계약', summary: '삼성바이오로직스가 글로벌 제약사와 대규모 계약을 체결했다.', publisher: '한국경제', sourceUrl: 'https://hankyung.com/4', tags: ['바이오']),
+        BriefingNewsItem(id: '${index}_5', title: '원/달러 환율 1,350원대 안착', summary: '원/달러 환율이 안정세를 보이고 있다.', publisher: '매일경제', sourceUrl: 'https://mk.co.kr/5', tags: ['환율']),
+      ],
+    );
+  });
 }
