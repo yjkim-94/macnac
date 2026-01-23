@@ -1,9 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models.news import NewsArticle, CausalityAnalysis, Insight
+from ..services.claude_service import recreate_news, analyze_causality, generate_insights
 
 router = APIRouter(prefix="/news", tags=["news"])
+
+
+class AnalyzeRequest(BaseModel):
+    text: str
 
 
 @router.get("")
@@ -41,3 +47,21 @@ async def get_news_detail(news_id: str, db: Session = Depends(get_db)):
         "insights": [{"title": i.title, "content": i.content, "type": i.insight_type, "importance": i.importance} for i in article.insights],
         "related_tags": article.tags
     }
+
+
+@router.post("/analyze/recreate")
+async def analyze_recreate(req: AnalyzeRequest):
+    """원문을 재창작 (저작권 준수)"""
+    return await recreate_news(req.text)
+
+
+@router.post("/analyze/causality")
+async def analyze_causality_endpoint(req: AnalyzeRequest):
+    """인과관계 분석"""
+    return await analyze_causality(req.text)
+
+
+@router.post("/analyze/insights")
+async def analyze_insights_endpoint(req: AnalyzeRequest):
+    """투자 인사이트 생성"""
+    return await generate_insights(req.text)
