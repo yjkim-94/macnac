@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models.news import NewsArticle, CausalityAnalysis, Insight
 from ..services.claude_service import recreate_news, analyze_causality, generate_insights
+from ..services.rss_service import fetch_all_feeds
 
 router = APIRouter(prefix="/news", tags=["news"])
 
@@ -65,3 +66,9 @@ async def analyze_causality_endpoint(req: AnalyzeRequest):
 async def analyze_insights_endpoint(req: AnalyzeRequest):
     """투자 인사이트 생성"""
     return await generate_insights(req.text)
+
+
+@router.get("/rss/fetch")
+async def fetch_rss_news(limit: int = Query(5, ge=1, le=20)):
+    """RSS에서 최신 뉴스 수집"""
+    return {"articles": fetch_all_feeds(limit)}
