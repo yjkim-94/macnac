@@ -42,8 +42,11 @@ async def get_briefings(
 
 
 @router.get("/today")
-async def get_today_briefing(db: Session = Depends(get_db)):
-    """오늘의 브리핑 조회"""
+async def get_today_briefing(
+    auto_generate: bool = Query(True, description="브리핑 없으면 자동 생성"),
+    db: Session = Depends(get_db)
+):
+    """오늘의 브리핑 조회 (없으면 자동 생성)"""
     today = date.today()
 
     briefing = db.query(DailyBriefing).filter(
@@ -51,7 +54,11 @@ async def get_today_briefing(db: Session = Depends(get_db)):
     ).first()
 
     if not briefing:
-        raise HTTPException(status_code=404, detail="오늘의 브리핑이 없습니다")
+        if auto_generate:
+            # 자동 생성
+            briefing = await _generate_briefing_internal(today, db)
+        else:
+            raise HTTPException(status_code=404, detail="오늘의 브리핑이 없습니다")
 
     return _format_briefing(briefing)
 
@@ -96,6 +103,18 @@ async def generate_briefing(
         else:
             return {"message": "이미 브리핑이 존재합니다", "briefing_id": existing.id}
 
+    # 내부 함수로 생성
+    briefing = await _generate_briefing_internal(target_date, db, news_count)
+
+    return {
+        "message": "브리핑 생성 완료",
+        "briefing_id": briefing.id,
+        "news_count": len(briefing.news_items),
+    }
+
+
+async def _generate_briefing_internal(target_date: date, db: Session, news_count: int = 8) -> DailyBriefing:
+    """내부 브리핑 생성 함수"""
     # RSS에서 뉴스 수집
     all_news = fetch_all_feeds(limit_per_feed=10)
 
@@ -103,7 +122,6 @@ async def generate_briefing(
     filtered_news = run_pipeline(all_news, target_count=news_count)
 
     if len(filtered_news) < news_count:
-        # 부족하면 전체에서 추가 선택
         filtered_news = all_news[:news_count]
 
     # 뉴스 아이템 생성 (먼저 재창작하여 제목 수집)
@@ -113,7 +131,6 @@ async def generate_briefing(
     for i, news in enumerate(filtered_news):
         original_text = f"{news['title']}. {news['summary']}"
 
-        # Claude API 호출 (재창작)
         try:
             recreated = await recreate_news(original_text)
         except Exception as e:
@@ -153,12 +170,8 @@ async def generate_briefing(
         db.add(item)
 
     db.commit()
-
-    return {
-        "message": "브리핑 생성 완료",
-        "briefing_id": briefing.id,
-        "news_count": len(filtered_news),
-    }
+    db.refresh(briefing)
+    return briefing
 
 
 def _format_briefing(briefing: DailyBriefing) -> dict:

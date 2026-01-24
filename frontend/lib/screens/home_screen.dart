@@ -6,7 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../config/app_colors.dart';
 import '../models/briefing_model.dart';
 import '../services/briefing_service.dart';
-import 'legal_screen.dart';
+import 'legal_screen.dart'; // LegalUrls
 
 /// 홈 화면 - 데일리 브리핑
 class HomeScreen extends StatefulWidget {
@@ -54,16 +54,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
       setState(() {
         _todayBriefing = today;
-        _pastBriefings = []; // API에서 지난 브리핑도 조회 가능
+        _pastBriefings = [];
         _isLoading = false;
+        _error = null;
       });
     } catch (e) {
       setState(() {
-        _error = '브리핑을 불러올 수 없습니다';
         _isLoading = false;
+        // 404 = 브리핑 없음, 그 외 = 연결 실패
+        if (e.toString().contains('404')) {
+          _todayBriefing = null;
+          _error = null; // 브리핑 없음은 에러 아님
+        } else {
+          _error = '연결에 실패했습니다';
+        }
       });
-      // API 실패시 Mock 데이터로 폴백
-      _loadMockData();
     }
   }
 
@@ -116,16 +121,53 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
+    // 연결 실패
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.wifi_off, size: 64, color: AppColors.textTertiary),
+            const SizedBox(height: 16),
+            Text(
+              _error!,
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 16),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              '인터넷 연결을 확인해주세요',
+              style: TextStyle(color: AppColors.textTertiary, fontSize: 14),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: _loadBriefings,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.textPrimary,
+                foregroundColor: AppColors.textOnDark,
+              ),
+              child: const Text('다시 시도'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // 브리핑 없음 (준비 중)
     if (_todayBriefing == null) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.article_outlined, size: 64, color: AppColors.textTertiary),
+            const Icon(Icons.schedule, size: 64, color: AppColors.textTertiary),
             const SizedBox(height: 16),
             const Text(
-              '오늘의 브리핑이 없습니다',
+              '오늘의 브리핑 준비 중',
               style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              '잠시 후 다시 확인해주세요',
+              style: TextStyle(color: AppColors.textTertiary, fontSize: 14),
             ),
             const SizedBox(height: 24),
             ElevatedButton(
@@ -422,7 +464,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 title: const Text('이용약관'),
                 onTap: () {
                   Navigator.pop(context);
-                  LegalScreen.showTermsOfService(context);
+                  LegalUrls.openTermsOfService();
                 },
               ),
               ListTile(
@@ -430,7 +472,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 title: const Text('개인정보처리방침'),
                 onTap: () {
                   Navigator.pop(context);
-                  LegalScreen.showPrivacyPolicy(context);
+                  LegalUrls.openPrivacyPolicy();
                 },
               ),
             ],

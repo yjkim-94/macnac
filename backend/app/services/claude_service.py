@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from anthropic import Anthropic
 from ..config import get_settings
 from ..prompts.templates import RECREATION_PROMPT, DAILY_SUMMARY_PROMPT
@@ -32,8 +33,8 @@ def validate_recreation(original_text: str, recreated: dict) -> tuple[bool, str]
     if not title or len(title) < 5:
         return False, "제목이 너무 짧음"
 
-    # 요약이 비어있으면 실패
-    if not summary or len(summary) < 50:
+    # 요약이 비어있으면 실패 (20자 이상이면 OK)
+    if not summary or len(summary) < 20:
         return False, "요약이 너무 짧음"
 
     # 본문 유사도 체크 (60% 이상이면 실패 - 완화)
@@ -56,15 +57,29 @@ async def recreate_news(original_text: str, max_retries: int = 3) -> dict:
                 messages=[{"role": "user", "content": RECREATION_PROMPT.format(original_text=original_text)}]
             )
 
-            # JSON 파싱
-            text = response.content[0].text
-            # JSON 블록 추출 (```json ... ``` 형태 처리)
-            if "```json" in text:
-                text = text.split("```json")[1].split("```")[0]
-            elif "```" in text:
-                text = text.split("```")[1].split("```")[0]
+            # 응답 텍스트
+            raw_text = response.content[0].text.strip()
 
-            result = json.loads(text.strip())
+            # 정규식으로 title과 summary 직접 추출 (JSON 파싱 우회)
+            title_match = re.search(r'"title"[:\s]*"?([^"]+)"?', raw_text)
+            summary_match = re.search(r'"summary"[:\s]*"?(.+?)(?:"\s*}|$)', raw_text, re.DOTALL)
+
+            if title_match and summary_match:
+                title = title_match.group(1).strip().strip('"').strip("'")
+                summary = summary_match.group(1).strip().strip('"').strip("'")
+                # 연속 공백/줄바꿈 정리
+                summary = re.sub(r'\s+', ' ', summary)
+                result = {"title": title, "summary": summary}
+            else:
+                # 정규식 실패 시 JSON 파싱 시도
+                text = raw_text
+                if "```json" in text:
+                    text = text.split("```json")[1].split("```")[0].strip()
+                elif "```" in text:
+                    parts = text.split("```")
+                    if len(parts) >= 2:
+                        text = parts[1].strip()
+                result = json.loads(text)
             last_result = result
 
             # 검증
@@ -76,6 +91,7 @@ async def recreate_news(original_text: str, max_retries: int = 3) -> dict:
 
         except json.JSONDecodeError as e:
             logger.warning(f"JSON 파싱 실패 (시도 {attempt + 1}): {e}")
+            print(f"  [DEBUG] 파싱 실패 텍스트: {text[:200] if 'text' in dir() else 'N/A'}...")
         except Exception as e:
             logger.warning(f"재창작 오류 (시도 {attempt + 1}): {e}")
 
