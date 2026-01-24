@@ -1,6 +1,6 @@
 """데일리 브리핑 모델"""
 from datetime import datetime, date
-from sqlalchemy import Column, String, DateTime, Date, Integer, ForeignKey, Text, Boolean
+from sqlalchemy import Column, String, DateTime, Date, Integer, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from ..database import Base
 import uuid
@@ -12,10 +12,9 @@ class DailyBriefing(Base):
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     briefing_date = Column(Date, unique=True, index=True)
-    daily_summary = Column(String(200), nullable=True)  # 오늘의 한 줄 요약
+    daily_summary = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    # 관계
     news_items = relationship("BriefingNewsItem", back_populates="briefing")
 
 
@@ -25,27 +24,12 @@ class BriefingNewsItem(Base):
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     briefing_id = Column(String, ForeignKey("daily_briefings.id"))
-    order = Column(Integer)  # 순서 (1~5)
-
-    # 기본 정보
+    order = Column(Integer)
     title = Column(String(500))
-    summary = Column(Text)  # 5-7문장 요약 (배경-사건-영향)
+    summary = Column(Text)
     publisher = Column(String(100))
     source_url = Column(String(1000))
-    category = Column(String(20), nullable=True)  # economy, industry, tech, policy
-    tags = Column(String(200))  # 쉼표 구분
-
-    # 토핑 (유료)
-    causality_cause = Column(Text, nullable=True)
-    causality_effect = Column(Text, nullable=True)
-    insight_title = Column(String(200), nullable=True)
-    insight_content = Column(Text, nullable=True)
-    insight_type = Column(String(20), nullable=True)  # positive, negative, neutral
-
-    # 투자 관련성
-    investment_score = Column(Integer, default=0)  # 0~100
-
+    category = Column(String(20), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    # 관계
     briefing = relationship("DailyBriefing", back_populates="news_items")

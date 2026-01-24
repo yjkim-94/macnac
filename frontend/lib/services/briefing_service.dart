@@ -53,6 +53,21 @@ class BriefingService {
     }
   }
 
+  /// 피드백 전송
+  Future<bool> sendFeedback(String content, {String? platform}) async {
+    try {
+      await _client.post('/feedback', data: {
+        'content': content,
+        'platform': platform ?? 'unknown',
+        'app_version': '1.0.0',
+      });
+      return true;
+    } catch (e) {
+      print('sendFeedback error: $e');
+      return false;
+    }
+  }
+
   DailyBriefingModel _parseBriefingSummary(Map<String, dynamic> data) {
     return DailyBriefingModel(
       id: data['id'] ?? '',
@@ -96,6 +111,7 @@ class BriefingService {
       summary: data['summary'] ?? '',
       publisher: data['publisher'] ?? '',
       sourceUrl: data['source_url'] ?? '',
+      category: data['category'],
       tags: List<String>.from(data['tags'] ?? []),
       causality: causality,
       insight: insight,

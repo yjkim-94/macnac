@@ -27,9 +27,10 @@ class DailyBriefingModel {
 class BriefingNewsItem {
   final String id;
   final String title;
-  final String summary; // 2-3문장 요약
+  final String summary; // 5-7문장 요약
   final String publisher;
   final String sourceUrl;
+  final String? category; // 분야: economy, industry, tech, policy, politics, society, entertainment, sports
   final List<String> tags;
 
   // 토핑 (유료)
@@ -42,6 +43,7 @@ class BriefingNewsItem {
     required this.summary,
     required this.publisher,
     required this.sourceUrl,
+    this.category,
     this.tags = const [],
     this.causality,
     this.insight,

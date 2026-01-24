@@ -1,23 +1,22 @@
 """
 뉴스 필터링 및 선별 파이프라인
 1. 뉴스 수집 (RSS)
-2. 1차 필터 (단순 사건사고/단문 제거)
-3. 분야 분류 (경제/산업/기술/정책)
+2. 1차 필터 (단문 제거)
+3. 분야 분류 (8개 분야)
 4. 중요도 점수 계산
 5. 점수 컷
-6. 중복 기사 그룹화
-7. 대표 기사 선택
-8. 상위 5개 선정 (분야 균형 보정)
+6. 분야별 그룹화
+7. 분야당 1개 선정
 """
 
 from difflib import SequenceMatcher
 
-# 분야별 키워드
+# 분야별 키워드 (8개 분야)
 CATEGORY_KEYWORDS = {
     "economy": [  # 경제
         "금리", "환율", "달러", "원화", "채권", "인플레이션", "GDP", "경기",
         "수출", "무역", "연준", "Fed", "한은", "기준금리", "물가", "소비자물가",
-        "고용", "실업률", "경제성장", "무역수지",
+        "고용", "실업률", "경제성장", "무역수지", "코스피", "코스닥", "주가", "증시",
     ],
     "industry": [  # 산업
         "반도체", "자동차", "조선", "철강", "화학", "건설", "유통", "항공",
@@ -27,77 +26,92 @@ CATEGORY_KEYWORDS = {
     "tech": [  # 기술
         "AI", "인공지능", "클라우드", "빅데이터", "5G", "6G", "메타버스",
         "로봇", "자율주행", "드론", "블록체인", "핀테크", "사이버보안",
-        "스타트업", "벤처", "플랫폼", "소프트웨어",
+        "스타트업", "벤처", "플랫폼", "소프트웨어", "앱", "게임",
     ],
     "policy": [  # 정책
         "정부", "국회", "법안", "규제", "세금", "세제", "보조금", "지원",
         "금융위", "공정위", "산업부", "기획재정부", "정책", "제도",
-        "무역협정", "FTA", "관세",
+        "무역협정", "FTA", "관세", "장관", "대통령실",
     ],
+    "politics": [  # 정치
+        "여당", "야당", "국민의힘", "민주당", "선거", "국정감사", "탄핵",
+        "대통령", "총리", "의원", "청문회", "외교", "북한", "미국", "중국",
+        "정상회담", "안보", "국방", "군사",
+    ],
+    "society": [  # 사회
+        "사건", "사고", "범죄", "재판", "검찰", "경찰", "법원", "판결",
+        "교육", "대학", "입시", "부동산", "아파트", "전세", "월세",
+        "환경", "날씨", "재해", "의료", "병원", "건강",
+    ],
+    "entertainment": [  # 연예
+        "연예", "아이돌", "배우", "가수", "드라마", "영화", "예능", "음악",
+        "콘서트", "앨범", "시청률", "흥행", "넷플릭스", "디즈니", "웨이브",
+        "결혼", "열애", "팬미팅", "컴백", "데뷔",
+    ],
+    "sports": [  # 스포츠
+        "축구", "야구", "농구", "배구", "골프", "테니스", "수영", "육상",
+        "올림픽", "월드컵", "프로야구", "K리그", "NBA", "MLB", "EPL",
+        "감독", "선수", "우승", "경기", "대회", "메달",
+    ],
+}
+
+# 분야 한글명
+CATEGORY_NAMES = {
+    "economy": "경제",
+    "industry": "산업",
+    "tech": "기술",
+    "policy": "정책",
+    "politics": "정치",
+    "society": "사회",
+    "entertainment": "연예",
+    "sports": "스포츠",
 }
 
 # 중요도 가점 키워드
 IMPORTANCE_KEYWORDS = [
-    "코스피", "코스닥", "나스닥", "주가", "증시", "급등", "급락",
-    "신고가", "최대", "최초", "역대", "사상", "돌파", "붕괴",
-    "삼성", "SK", "현대", "LG", "카카오", "네이버",
-]
-
-# 제외 키워드 (단순 사건사고, 연예, 스포츠 등)
-EXCLUDE_KEYWORDS = [
-    "연예", "스포츠", "날씨", "사건", "사고", "범죄", "체포", "구속",
-    "정치", "선거", "여당", "야당", "문화", "예능", "드라마", "영화",
-    "음악", "공연", "부고", "사망", "결혼", "열애", "이혼",
+    "속보", "단독", "긴급", "최초", "최대", "역대", "사상", "돌파",
+    "급등", "급락", "폭등", "폭락", "신기록", "충격", "논란",
+    "삼성", "SK", "현대", "LG", "카카오", "네이버", "애플", "테슬라",
 ]
 
 # 최소 요약 길이
-MIN_SUMMARY_LENGTH = 50
+MIN_SUMMARY_LENGTH = 30
 
 
-def run_pipeline(articles: list, target_count: int = 5) -> list:
-    """전체 파이프라인 실행"""
-    # 2. 1차 필터
+def run_pipeline(articles: list, target_count: int = None) -> list:
+    """전체 파이프라인 실행 (분야당 1개씩 선정)"""
+    # target_count가 None이면 분야 수만큼
+    if target_count is None:
+        target_count = len(CATEGORY_KEYWORDS)
+
+    # 1. 단문 필터
     filtered = filter_basic(articles)
-    print(f"[Pipeline] 1차 필터 후: {len(filtered)}개")
+    print(f"[Pipeline] 단문 필터 후: {len(filtered)}개")
 
-    # 3. 분야 분류
+    # 2. 분야 분류
     categorized = [classify_category(a) for a in filtered]
     print(f"[Pipeline] 분야 분류 완료")
 
-    # 4. 중요도 점수 계산
+    # 3. 중요도 점수 계산
     scored = [calculate_score(a) for a in categorized]
     print(f"[Pipeline] 점수 계산 완료")
 
-    # 5. 점수 컷 (0.2 이상만)
-    passed = [a for a in scored if a.get("score", 0) >= 0.2]
+    # 4. 점수 컷 (0.15 이상만)
+    passed = [a for a in scored if a.get("score", 0) >= 0.15]
     print(f"[Pipeline] 점수 컷 후: {len(passed)}개")
 
-    # 6. 중복 기사 그룹화
-    groups = group_similar_articles(passed)
-    print(f"[Pipeline] 그룹화 후: {len(groups)}개 그룹")
-
-    # 7. 대표 기사 선택
-    representatives = select_representatives(groups)
-    print(f"[Pipeline] 대표 기사: {len(representatives)}개")
-
-    # 8. 상위 N개 선정 (분야 균형 보정)
-    final = select_balanced(representatives, target_count)
-    print(f"[Pipeline] 최종 선정: {len(final)}개")
+    # 5. 분야별 그룹화 후 각 분야에서 1개씩 선정
+    final = select_one_per_category(passed)
+    print(f"[Pipeline] 분야별 선정: {len(final)}개")
 
     return final
 
 
 def filter_basic(articles: list) -> list:
-    """1차 필터: 단순 사건사고, 단문 기사 제거"""
+    """1차 필터: 단문 기사만 제거"""
     result = []
     for article in articles:
-        title = article.get("title", "")
         summary = article.get("summary", "")
-        text = f"{title} {summary}"
-
-        # 제외 키워드 체크
-        if any(kw in text for kw in EXCLUDE_KEYWORDS):
-            continue
 
         # 단문 기사 제외
         if len(summary) < MIN_SUMMARY_LENGTH:
@@ -196,8 +210,41 @@ def select_representatives(groups: list) -> list:
     return representatives
 
 
+def select_one_per_category(articles: list) -> list:
+    """각 분야에서 최고 점수 기사 1개씩 선정"""
+    # 분야별 그룹화
+    by_category = {}
+    for article in articles:
+        cat = article.get("category", "economy")
+        if cat not in by_category:
+            by_category[cat] = []
+        by_category[cat].append(article)
+
+    # 각 분야에서 중복 제거 후 최고 점수 1개 선택
+    result = []
+    for cat in CATEGORY_KEYWORDS.keys():
+        if cat not in by_category or not by_category[cat]:
+            continue
+
+        # 해당 분야 내 중복 기사 그룹화
+        groups = group_similar_articles(by_category[cat])
+
+        # 각 그룹의 대표 기사 중 최고 점수
+        representatives = select_representatives(groups)
+        if representatives:
+            best = max(representatives, key=lambda x: x.get("score", 0))
+            best["category_name"] = CATEGORY_NAMES.get(cat, cat)
+            result.append(best)
+
+    # 분야 순서대로 정렬
+    category_order = list(CATEGORY_KEYWORDS.keys())
+    result.sort(key=lambda x: category_order.index(x.get("category", "economy")))
+
+    return result
+
+
 def select_balanced(articles: list, count: int = 5) -> list:
-    """분야 균형 보정하여 상위 N개 선정"""
+    """분야 균형 보정하여 상위 N개 선정 (하위 호환)"""
     # 점수순 정렬
     sorted_articles = sorted(articles, key=lambda x: x.get("score", 0), reverse=True)
 

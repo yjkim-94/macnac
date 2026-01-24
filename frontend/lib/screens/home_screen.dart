@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -279,6 +281,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildNewsPreviewItem(BriefingNewsItem item) {
+    // 요약에서 첫 문장 추출
+    final firstSentence = _getFirstSentence(item.summary);
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -302,13 +307,30 @@ class _HomeScreenState extends State<HomeScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
-                Text(item.publisher, style: const TextStyle(fontSize: 12, color: AppColors.textTertiary)),
+                Text(
+                  firstSentence,
+                  style: const TextStyle(fontSize: 12, color: AppColors.textTertiary),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ],
             ),
           ),
         ],
       ),
     );
+  }
+
+  /// 요약에서 첫 문장 추출
+  String _getFirstSentence(String summary) {
+    if (summary.isEmpty) return '';
+    // 마침표로 첫 문장 분리
+    final match = RegExp(r'^[^.]*\.').firstMatch(summary);
+    if (match != null) {
+      return match.group(0) ?? summary;
+    }
+    // 마침표가 없으면 전체 반환 (50자 제한)
+    return summary.length > 50 ? '${summary.substring(0, 50)}...' : summary;
   }
 
   Widget _buildSectionHeader(String title, String subtitle) {
@@ -445,11 +467,20 @@ class _HomeScreenState extends State<HomeScreen> {
             child: const Text('취소', style: TextStyle(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
+              final content = controller.text.trim();
+              if (content.isEmpty) {
+                Navigator.pop(context);
+                return;
+              }
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('의견이 전송되었습니다. 감사합니다!')),
-              );
+              final platform = kIsWeb ? 'web' : (Platform.isIOS ? 'ios' : 'android');
+              final success = await _briefingService.sendFeedback(content, platform: platform);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(success ? '의견이 전송되었습니다. 감사합니다!' : '전송에 실패했습니다. 다시 시도해주세요.')),
+                );
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.textPrimary,
@@ -496,7 +527,7 @@ class BriefingDetailScreen extends StatelessWidget {
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                   color: AppColors.textOnDark,
-                  height: 1.4,
+                  height: 1.5,
                 ),
               ),
             ),
@@ -511,7 +542,55 @@ class BriefingDetailScreen extends StatelessWidget {
     );
   }
 
+  /// 언론사 이름 정규화
+  String _normalizePublisher(String publisher) {
+    String name = publisher;
+
+    // 다양한 구분자 처리
+    // "::" 기준 분리
+    if (name.contains('::')) {
+      name = name.split('::').first.trim();
+    }
+    // ":" 기준 분리 (경향신문:전체기사)
+    if (name.contains(':')) {
+      name = name.split(':').first.trim();
+    }
+    // " - " 기준 분리
+    if (name.contains(' - ')) {
+      final parts = name.split(' - ');
+      if (parts.last.trim().length < 10) {
+        name = parts.last.trim();
+      } else {
+        name = parts.first.trim();
+      }
+    }
+    // "|" 기준 분리
+    if (name.contains('|')) {
+      name = name.split('|').first.trim();
+    }
+
+    return name;
+  }
+
+  /// 카테고리 한글명
+  String _getCategoryName(String? category) {
+    const names = {
+      'economy': '경제',
+      'industry': '산업',
+      'tech': '기술',
+      'policy': '정책',
+      'politics': '정치',
+      'society': '사회',
+      'entertainment': '연예',
+      'sports': '스포츠',
+    };
+    return names[category] ?? '뉴스';
+  }
+
   Widget _buildNewsCard(BuildContext context, BriefingNewsItem item, int number) {
+    final normalizedPublisher = _normalizePublisher(item.publisher);
+    final categoryName = _getCategoryName(item.category);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(20),
@@ -523,7 +602,27 @@ class BriefingDetailScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 카테고리 태그 (우상단)
           Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  '#$categoryName',
+                  style: const TextStyle(fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // 번호 + 타이틀
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
                 width: 24,
@@ -532,24 +631,25 @@ class BriefingDetailScreen extends StatelessWidget {
                 child: Center(child: Text('$number', style: const TextStyle(color: AppColors.textOnDark, fontSize: 12, fontWeight: FontWeight.w600))),
               ),
               const SizedBox(width: 12),
-              Text(item.publisher, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-              const Spacer(),
-              if (item.tags.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(4)),
-                  child: Text('#${item.tags.first}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+              Expanded(
+                child: Text(
+                  item.title,
+                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: AppColors.textPrimary, height: 1.4),
                 ),
+              ),
             ],
           ),
-          const SizedBox(height: 12),
-          Text(item.title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: AppColors.textPrimary, height: 1.4)),
-          const SizedBox(height: 12),
-          Text(item.summary, style: const TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.6)),
-          // MVP: 인과관계/인사이트 섹션 숨김 (추후 프리미엄 기능)
-          // if (item.causality != null) ...[const SizedBox(height: 16), _buildCausalitySection(item.causality!)],
-          // if (item.insight != null) ...[const SizedBox(height: 16), _buildInsightSection(item.insight!)],
           const SizedBox(height: 16),
+          // 요약
+          Text(item.summary, style: const TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.6)),
+          const SizedBox(height: 16),
+          // 출처
+          Text(
+            '출처 : $normalizedPublisher',
+            style: const TextStyle(fontSize: 12, color: AppColors.textTertiary),
+          ),
+          const SizedBox(height: 8),
+          // 원문 보기
           GestureDetector(
             onTap: () async {
               final url = Uri.parse(item.sourceUrl);

@@ -1,10 +1,10 @@
 """브리핑 API"""
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from ..database import get_db
 from ..models.briefing import DailyBriefing, BriefingNewsItem
-from ..services.news_filter import run_pipeline, calculate_investment_score
+from ..services.news_filter import run_pipeline
 from ..services.rss_service import fetch_all_feeds
 from ..services.claude_service import recreate_news, generate_daily_summary
 import uuid
@@ -72,7 +72,8 @@ async def get_briefing_detail(briefing_id: str, db: Session = Depends(get_db)):
 @router.post("/generate")
 async def generate_briefing(
     target_date: date = None,
-    news_count: int = Query(5, ge=1, le=10),
+    news_count: int = Query(8, ge=1, le=15, description="분야당 1개씩 (기본 8개)"),
+    force: bool = Query(False, description="기존 브리핑 삭제 후 재생성"),
     db: Session = Depends(get_db)
 ):
     """브리핑 생성 (RSS 수집 + Claude 분석)"""
@@ -85,7 +86,15 @@ async def generate_briefing(
     ).first()
 
     if existing:
-        return {"message": "이미 브리핑이 존재합니다", "briefing_id": existing.id}
+        if force:
+            # 기존 브리핑 삭제 (뉴스 아이템도 cascade 삭제)
+            db.query(BriefingNewsItem).filter(
+                BriefingNewsItem.briefing_id == existing.id
+            ).delete()
+            db.delete(existing)
+            db.commit()
+        else:
+            return {"message": "이미 브리핑이 존재합니다", "briefing_id": existing.id}
 
     # RSS에서 뉴스 수집
     all_news = fetch_all_feeds(limit_per_feed=10)
@@ -131,13 +140,6 @@ async def generate_briefing(
 
     # 뉴스 아이템 저장
     for i, (news, recreated) in enumerate(news_items_data):
-        # MVP: 인과관계/인사이트는 생성하지 않음
-        causalities = []
-        insights = []
-
-        # 투자 관련성 점수
-        score = calculate_investment_score(news["title"], news["summary"])
-
         item = BriefingNewsItem(
             id=str(uuid.uuid4()),
             briefing_id=briefing.id,
@@ -146,22 +148,8 @@ async def generate_briefing(
             summary=recreated.get("summary", news["summary"]),
             publisher=news["publisher"],
             source_url=news["source_url"],
-            category=news.get("category", "economy"),  # 분야
-            tags=",".join(news.get("tags", [])),
-            investment_score=int(score * 100),
+            category=news.get("category", "economy"),
         )
-
-        # 인과관계 (첫번째만)
-        if causalities:
-            item.causality_cause = causalities[0].get("cause", "")
-            item.causality_effect = causalities[0].get("effect", "")
-
-        # 인사이트 (첫번째만, 투자 관련성 높은 경우만)
-        if insights and score > 0.3:
-            item.insight_title = insights[0].get("title", "")
-            item.insight_content = insights[0].get("content", "")
-            item.insight_type = insights[0].get("type", "neutral")
-
         db.add(item)
 
     db.commit()
@@ -178,7 +166,7 @@ def _format_briefing(briefing: DailyBriefing) -> dict:
     return {
         "id": briefing.id,
         "date": briefing.briefing_date.isoformat(),
-        "daily_summary": briefing.daily_summary,  # 오늘의 한 줄 요약
+        "daily_summary": briefing.daily_summary,
         "is_today": briefing.briefing_date == date.today(),
         "news_items": [
             {
@@ -188,18 +176,7 @@ def _format_briefing(briefing: DailyBriefing) -> dict:
                 "summary": item.summary,
                 "publisher": item.publisher,
                 "source_url": item.source_url,
-                "category": item.category,  # 분야: economy, industry, tech, policy
-                "tags": item.tags.split(",") if item.tags else [],
-                "investment_score": item.investment_score,
-                "causality": {
-                    "cause": item.causality_cause,
-                    "effect": item.causality_effect,
-                } if item.causality_cause else None,
-                "insight": {
-                    "title": item.insight_title,
-                    "content": item.insight_content,
-                    "type": item.insight_type,
-                } if item.insight_title else None,
+                "category": item.category,
             }
             for item in sorted(briefing.news_items, key=lambda x: x.order)
         ],

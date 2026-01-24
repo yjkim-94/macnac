@@ -32,30 +32,36 @@ python run.py
 - http://localhost:8000 (루트)
 - http://localhost:8000/docs (Swagger UI)
 
-## API 엔드포인트
+## 주요 API
 
-### 인증
-- `POST /api/v1/auth/login` - 로그인
-- `POST /api/v1/auth/register` - 회원가입
+### 브리핑 생성 (curl)
+```bash
+# 오늘 브리핑 생성
+curl -X POST http://localhost:8000/api/v1/briefing/generate
+
+# 강제 재생성 (기존 브리핑 삭제 후 재생성)
+curl -X POST "http://localhost:8000/api/v1/briefing/generate?force=true"
+
+# 뉴스 개수 지정 (기본 5개)
+curl -X POST "http://localhost:8000/api/v1/briefing/generate?news_count=3"
+```
+
+### 브리핑 조회
+```bash
+# 오늘 브리핑 조회
+curl http://localhost:8000/api/v1/briefing/today
+
+# 최근 N일 브리핑 목록
+curl "http://localhost:8000/api/v1/briefing?days=7"
+```
 
 ### 뉴스
-- `GET /api/v1/news` - 뉴스 목록
-- `GET /api/v1/news/{id}` - 뉴스 상세
-- `GET /api/v1/news/rss/fetch` - RSS 뉴스 수집
-
-### AI 분석 (Claude API 필요)
-- `POST /api/v1/news/analyze/recreate` - 뉴스 재창작
-- `POST /api/v1/news/analyze/causality` - 인과관계 분석
-- `POST /api/v1/news/analyze/insights` - 투자 인사이트
-
-## 테스트 계정
-- Email: test@test.com
-- Password: test1234
+- `GET /api/v1/news/rss/fetch` - RSS 뉴스 수집 테스트
 
 ## RSS 피드 지원
-- 한국경제
-- 매일경제
-- 서울경제
+- 한국경제, 매일경제, 서울경제, 이데일리, 머니투데이 (경제)
+- ZDNet Korea, 전자신문 (IT/산업)
+- 연합뉴스TV (종합)
 
 ## 저작권 검증
 ```bash

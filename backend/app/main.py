@@ -1,9 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .config import get_settings
-from .routes import auth, news, briefing
+from .routes import auth, news, briefing, feedback
 from .database import engine, Base
-from .models import user, news as news_model, subscription, briefing as briefing_model
+from .models import user, news as news_model, subscription, briefing as briefing_model, feedback as feedback_model
 
 settings = get_settings()
 
@@ -23,6 +23,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(news.router, prefix="/api/v1")
 app.include_router(briefing.router, prefix="/api/v1")
+app.include_router(feedback.router, prefix="/api/v1")
 
 
 @app.get("/")
